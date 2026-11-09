@@ -1,0 +1,13 @@
+services:
+  c411-library-checker:
+    build: .
+    container_name: c411-library-checker
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8787:8787" # LAN only: never forward this port from the Internet
+    volumes:
+      - ./config:/config  # put this directory on your SSD application volume
+      - /YOUR/UGREEN/MOVIES/PATH:/media:ro # replace with the movie folder on the RAID 5
+    security_opt:
+      - no-new-privileges:true
