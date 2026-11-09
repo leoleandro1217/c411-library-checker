@@ -6,13 +6,39 @@ Application **française / anglaise**, en lecture seule, permettant de comparer 
 
 > **Important / Important :** "Not found" / « Introuvable » means **no result found by the current searches**, not definitive proof that C411 has no release. "Found" indicates a likely **title-level match**, not file or torrent-hash equivalence.
 
+## Version 0.2.0 — Connected library / Bibliothèque connectée
+
+The application now combines **C411 title search**, an optional **Jellyfin metadata link**, a **read-only qBittorrent monitoring panel**, a **release-candidate shortlist**, and a **manual cross-seed search trigger**. The underlying API integration is performed server-side, so none of the integration credentials are sent to the browser. Configuration is optional; the original movie scanner remains usable without Jellyfin, qBittorrent or cross-seed.
+
+L'application regroupe la **recherche de titres C411**, les **métadonnées Jellyfin**, les **statistiques qBittorrent en lecture seule**, les **releases candidates** et le **déclenchement manuel d'une recherche cross-seed**. Les identifiants restent côté serveur.
+
+**Seeding safety / Sécurité du seed**: a title match, even a release-name match, is **not a binary/hash check**. The application never adds torrents directly to qBittorrent. If you press the cross-seed search button and confirm, the [cross-seed daemon](https://www.cross-seed.org/docs/reference/api) will search and may link/inject verified matches **according to your separate cross-seed configuration**. Only seed media you are authorized to distribute.
+
+### Jellyfin setup / Configuration Jellyfin
+
+1. Fill `JELLYFIN_URL` (e.g. `http://jellyfin:8096`) and `JELLYFIN_API_KEY` in `.env`; optionally set `JELLYFIN_USER_ID` if your server requires user-scoped `/Users/{id}/Items`.
+2. Set `JELLYFIN_PATH_PREFIX` to Jellyfin's movie root path. Example: if Jellyfin sees `/data/Movies/Film.mkv` and C411 Library Checker sees `/media/Movies/Film.mkv`, set `JELLYFIN_PATH_PREFIX=/data` and mount `/data`'s contents as `/media` in the checker.
+3. Run the file scan once, then click **Sync Jellyfin**, then run the scan again. Changes to titles/year will be rechecked. The app links **exact relative paths only**, never guessed filenames.
+
+### qBittorrent setup / Configuration qBittorrent
+
+Set `QBIT_URL` to the WebUI URL reachable from this container (e.g. `http://qbittorrent:8080`). Prefer `QBIT_API_KEY` for qBittorrent v5.2+; older versions can use `QBIT_USERNAME` + `QBIT_PASSWORD`. The dashboard displays torrent counts and upload speed; it **does not issue torrent mutations**.
+
+### cross-seed setup / Configuration cross-seed
+
+Run and configure **cross-seed v6+** separately, following the official [data-based matching guide](https://www.cross-seed.org/docs/tutorials/data-based-matching). This is useful for renamed movies without original .torrent files. Enable `matchMode: "flexible"` where appropriate, and ensure hardlink/link directories and qBittorrent share compatible Linux volume paths. Set `CROSS_SEED_URL` (e.g. `http://cross-seed:2468`) and `CROSS_SEED_API_KEY` (retrieve using `cross-seed api-key`) in `.env`. The UI button invokes the documented `POST /api/job` search job **only after user confirmation**. The request will fail if search is not enabled in cross-seed. This is not a direct C411 reseed feature; configure your C411 indexer in cross-seed separately.
+
+### Incremental scheduling / Analyses périodiques
+
+Set `AUTO_SCAN_MINUTES=360` to automatically repeat the last selected folder scan every six hours (default `0`: off). Search cache and unchanged-file results prevent repeat queries; **C411's per-minute limit is respected**. Initial analysis of many titles can take hours.
+
 ## Features / Fonctionnalités
 
 - French / English language switch, stored in the browser / Bascule FR / EN.
 - Recursively scans a specified folder within the `/media` read-only mount / Analyse récursive d'un dossier sous `/media`.
 - Extracts movie titles and years from releases, Plex-style file names and local Kodi `.nfo` files / Lit les noms et fichiers `.nfo` locaux.
 - Searches C411 through its Torznab API (`t=movie`, category `2000`).
-- Displays **Found**, **Not found**, **Needs review**, **Error**, **Pending** / **Trouvé**, **Introuvable**, **À vérifier**, **Erreur**, **En attente**.
+- Displays **Found**, **Not found**, **Needs review**, **Error**, **Pending** / **Trouvé**, **Introuvable**, **À vérifier**, **Erreur**, **En attente**. Click a movie title to inspect its release candidates / Cliquer sur un film pour voir ses releases candidates.
 - Persistent SQLite progress, 30-day search cache and CSV export / Reprise, cache et export CSV.
 - Files are never renamed, copied, deleted or downloaded / Aucune modification des films.
 - Skips conventional TV episode names (`S01E01`, `1x01`) in this **movie-only** version / Ignore les épisodes TV classiques.
@@ -68,7 +94,11 @@ The app is intentionally **not designed for exposure to the public Internet**. I
 
 ## API / Endpoints
 
-- `GET /api/status` — counts and scan state
+- `GET /api/status` — counts, total bytes, service configuration and scan state
+- `GET /api/integrations` — connection status / qBit aggregate stats; never returns credentials
+- `GET /api/candidates?path=Films/Film.mkv` — review candidate release titles (not binary verification)
+- `POST /api/jellyfin/sync` — synchronize metadata via explicitly mapped Jellyfin paths
+- `POST /api/cross-seed/search` — `{ "confirm": true }`; manually trigger the cross-seed daemon search job
 - `GET /api/folders` — subdirectories available for scanning
 - `POST /api/scan` — `{ "folder": ".", "refresh": false }`
 - `POST /api/stop` — stop a running scan
@@ -87,4 +117,4 @@ python -m unittest discover -s tests -v
 
 ## Disclaimer
 
-This is a personal catalog comparison utility. Only access the tracker using your authorized API credentials and respect the service's limits and rules, as well as applicable copyright rules.
+This is a personal catalog comparison utility, not a pirate torrent automation or an assurance of legal redistribution. Only access the tracker using your authorized API credentials and respect the service's limits and rules, as well as applicable copyright rules.

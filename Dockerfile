@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY server.py ./
+COPY server.py integrations.py ./
 COPY static/ ./static/
 RUN useradd -r -u 10001 app && mkdir /config && chown -R app:app /config /app
 USER app
